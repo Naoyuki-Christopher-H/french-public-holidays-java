@@ -15,116 +15,166 @@ public class Solution
      * Calculates the number of working days (Monday to Friday excluding public holidays)
      * between two dates. The start date is inclusive, and the end date is exclusive.
      *
-     * @param fromDate The start date (inclusive)
-     * @param toDate   The end date (exclusive)
+     * @param startDateInclusive The start date (inclusive)
+     * @param endDateExclusive   The end date (exclusive)
      * @return The number of working days between the two dates
      */
-    public static int getWorkingDays(LocalDate fromDate, LocalDate toDate)
+    public static int getWorkingDays(LocalDate startDateInclusive, LocalDate endDateExclusive)
     {
-        int workingDays = 0;
+        int workingDayCount = 0;
+        LocalDate currentDate = startDateInclusive;
 
-        while (!fromDate.isEqual(toDate))
+        while (!currentDate.isEqual(endDateExclusive))
         {
-            DayOfWeek dayOfWeek = fromDate.getDayOfWeek();
+            DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
 
-            if (dayOfWeek != DayOfWeek.SATURDAY &&
+            if (dayOfWeek != DayOfWeek.SATURDAY && 
                 dayOfWeek != DayOfWeek.SUNDAY &&
-                !isHoliday(fromDate))
+                !isHoliday(currentDate))
             {
-                workingDays++;
+                workingDayCount++;
             }
 
-            fromDate = fromDate.plusDays(1);
+            currentDate = currentDate.plusDays(1);
         }
 
-        return workingDays;
+        return workingDayCount;
     }
 
     /**
      * Determines if a specific date is a French public holiday.
      *
-     * @param date The date to check
+     * @param dateToCheck The date to check for holiday status
      * @return True if the date is a public holiday, false otherwise
      */
-    public static boolean isHoliday(LocalDate date)
+    public static boolean isHoliday(LocalDate dateToCheck)
     {
-        return getHolidays(date.getYear()).containsKey(date);
+        return getHolidaysForYear(dateToCheck.getYear()).containsKey(dateToCheck);
     }
 
     /**
      * Returns a map of French public holidays for a given year.
      * Includes both fixed-date holidays and holidays based on Easter.
      *
-     * @param year The calendar year for which to retrieve holidays
-     * @return A map of LocalDate to holiday name
+     * @param targetYear The calendar year for which to retrieve holidays
+     * @return A map of LocalDate to holiday name strings
      */
-    public static Map<LocalDate, String> getHolidays(int year)
+    public static Map<LocalDate, String> getHolidaysForYear(int targetYear)
     {
-        Map<LocalDate, String> holidays = new HashMap<>();
+        Map<LocalDate, String> holidayMap = new HashMap<>();
 
-        // Fixed-date holidays
-        holidays.put(LocalDate.of(year, 1, 1), "Jour de l'an");
-        holidays.put(LocalDate.of(year, 5, 1), "Fête du travail");
-        holidays.put(LocalDate.of(year, 5, 8), "Victoire 1945");
-        holidays.put(LocalDate.of(year, 7, 14), "Fête nationale");
-        holidays.put(LocalDate.of(year, 8, 15), "Assomption");
-        holidays.put(LocalDate.of(year, 11, 1), "Toussaint");
-        holidays.put(LocalDate.of(year, 11, 11), "Armistice 1918");
-        holidays.put(LocalDate.of(year, 12, 25), "Noël");
+        // Add all fixed-date holidays
+        addFixedDateHolidays(holidayMap, targetYear);
+        
+        // Add movable feasts calculated from Easter Sunday
+        addEasterBasedHolidays(holidayMap, targetYear);
 
-        // Movable feasts calculated from Easter Sunday
+        return holidayMap;
+    }
+
+    /**
+     * Adds fixed-date French public holidays to the holiday map.
+     *
+     * @param holidayMap The map to populate with holidays
+     * @param year       The target year for the holidays
+     */
+    private static void addFixedDateHolidays(Map<LocalDate, String> holidayMap, int year)
+    {
+        holidayMap.put(LocalDate.of(year, 1, 1), "Jour de l'an");
+        holidayMap.put(LocalDate.of(year, 5, 1), "Fête du travail");
+        holidayMap.put(LocalDate.of(year, 5, 8), "Victoire 1945");
+        holidayMap.put(LocalDate.of(year, 7, 14), "Fête nationale");
+        holidayMap.put(LocalDate.of(year, 8, 15), "Assomption");
+        holidayMap.put(LocalDate.of(year, 11, 1), "Toussaint");
+        holidayMap.put(LocalDate.of(year, 11, 11), "Armistice 1918");
+        holidayMap.put(LocalDate.of(year, 12, 25), "Noël");
+    }
+
+    /**
+     * Adds movable French public holidays (based on Easter Sunday) to the holiday map.
+     *
+     * @param holidayMap The map to populate with holidays
+     * @param year       The target year for the holidays
+     */
+    private static void addEasterBasedHolidays(Map<LocalDate, String> holidayMap, int year)
+    {
         LocalDate easterSunday = calculateEasterSunday(year);
-        holidays.put(easterSunday.plusDays(1), "Lundi de Pâques");
-        holidays.put(easterSunday.plusDays(39), "Jeudi de l'Ascension");
-        holidays.put(easterSunday.plusDays(50), "Lundi de Pentecôte");
-
-        return holidays;
+        holidayMap.put(easterSunday.plusDays(1), "Lundi de Pâques");
+        holidayMap.put(easterSunday.plusDays(39), "Jeudi de l'Ascension");
+        holidayMap.put(easterSunday.plusDays(50), "Lundi de Pentecôte");
     }
 
     /**
      * Calculates the date of Easter Sunday for a given year using the
      * Meeus/Jones/Butcher Gregorian algorithm.
+     * 
+     * Reference: Jean Meeus' "Astronomical Algorithms" (1991)
      *
-     * @param year The year for which to calculate Easter Sunday
-     * @return The date of Easter Sunday
+     * @param targetYear The year for which to calculate Easter Sunday
+     * @return The LocalDate of Easter Sunday in the specified year
      */
-    private static LocalDate calculateEasterSunday(int year)
+    private static LocalDate calculateEasterSunday(int targetYear)
     {
-        // Meeus/Jones/Butcher algorithm for Gregorian calendar
-        int a = year % 19;
-        int b = year / 100;
-        int c = year % 100;
-        int d = b / 4;
-        int e = b % 4;
-        int f = (b + 8) / 25;
-        int g = (b - f + 1) / 3;
-        int h = (19 * a + b - d - g + 15) % 30;
-        int i = c / 4;
-        int j = c % 4;
-        int k = (32 + 2 * e + 2 * i - h - j) % 7;
-        int l = (a + 11 * h + 22 * k) / 451;
-        int m = (h + k - 7 * l + 114);
-        int month = m / 31;
-        int day = (m % 31) + 1;
+        // Step 1: Calculate the Golden Number
+        int goldenNumber = targetYear % 19;
+        
+        // Step 2: Calculate the century
+        int century = targetYear / 100;
+        
+        // Step 3: Calculate the year within the century
+        int yearInCentury = targetYear % 100;
+        
+        // Step 4: Calculate the century-based adjustments
+        int centuryQuarter = century / 4;
+        int centuryRemainder = century % 4;
+        
+        // Step 5: Calculate the solar correction term
+        int solarCorrection = (century + 8) / 25;
+        
+        // Step 6: Calculate the metonic cycle adjustment
+        int metonicAdjustment = (century - solarCorrection + 1) / 3;
+        
+        // Step 7: Calculate the epact (age of the moon on January 1)
+        int epact = (19 * goldenNumber + century - centuryQuarter - metonicAdjustment + 15) % 30;
+        
+        // Step 8: Calculate the moon's orbit correction
+        int moonOrbitCorrection = yearInCentury / 4;
+        int moonOrbitRemainder = yearInCentury % 4;
+        
+        // Step 9: Calculate the Sunday correction
+        int sundayCorrection = (32 + 2 * centuryRemainder + 2 * moonOrbitCorrection - epact - moonOrbitRemainder) % 7;
+        
+        // Step 10: Calculate the final adjustment
+        int finalAdjustment = (goldenNumber + 11 * epact + 22 * sundayCorrection) / 451;
+        
+        // Step 11: Calculate the month and day components
+        int monthDayCalculation = (epact + sundayCorrection - 7 * finalAdjustment + 114);
+        int month = monthDayCalculation / 31;
+        int day = (monthDayCalculation % 31) + 1;
 
-        return LocalDate.of(year, month, day);
+        return LocalDate.of(targetYear, month, day);
     }
 
     /**
-     * Main method for testing the functionality
-     * @param args
+     * Main method for testing the functionality.
+     * 
+     * @param args Command line arguments (not used)
      */
     public static void main(String[] args)
     {
-        // Test the working days calculation
-        LocalDate startDate = LocalDate.of(2023, 1, 1);
-        LocalDate endDate = LocalDate.of(2023, 12, 31);
+        // Test the working days calculation for the year 2023
+        LocalDate yearStart = LocalDate.of(2023, 1, 1);
+        LocalDate yearEnd = LocalDate.of(2023, 12, 31);
         
-        int workingDays = getWorkingDays(startDate, endDate);
-        System.out.println("Working days in 2023: " + workingDays);
+        int totalWorkingDays = getWorkingDays(yearStart, yearEnd);
+        System.out.println("Total working days in 2023: " + totalWorkingDays);
         
-        // Test holiday detection
-        LocalDate testDate = LocalDate.of(2023, 5, 1);
-        System.out.println("Is " + testDate + " a holiday? " + isHoliday(testDate));
+        // Test holiday detection for Labor Day (May 1)
+        LocalDate laborDay2023 = LocalDate.of(2023, 5, 1);
+        System.out.println("Is " + laborDay2023 + " a holiday? " + isHoliday(laborDay2023));
+        
+        // Test Easter Sunday calculation
+        LocalDate easter2023 = calculateEasterSunday(2023);
+        System.out.println("Easter Sunday in 2023: " + easter2023);
     }
 }
